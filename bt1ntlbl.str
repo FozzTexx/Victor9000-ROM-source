@@ -6,12 +6,15 @@ netlbl		struc;
 
 
 block_size	dw	?;	block size while reading
-block_number	dw	?;	initial block's number
+resv1		dw	?
 load		dw	?;	system load address as a paragraph
-size		dw	?;	size of system in paragraphs
+paras		dw	?;	size of system in paragraphs
 entry_offset	dw	?;	program entry offset from segmant
 entry_segment	dw	?;	program entry segment
 max_count	dw	?;	maximum number of blocks can read at once
+resv2		dw	?
+resv3		dw	?
+block_number	dw	?;	initial block's number
 
 
 netlbl		ends;

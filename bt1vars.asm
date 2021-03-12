@@ -49,9 +49,9 @@ receive_buffer	boot_receive	<>;	receive buffer (minus data)
 ;
 ;	hard disk variables
 ;
-lalist		dd	(56+1)*2 dup (?);table to find region's physical address
+lalist		dd	(56+1)*2 dup (0);table to find region's physical address
 dada		dd	?;		save area for a disk address
-sense		db	4 dup (?);	sense information for error status
+sense		db	4 dup (0);	sense information for error status
 hdctlcmd	db	?;		control field to send with commands
 hdctlimg	db	?;		control register image for hard disk
 hdctlop		db	?;		hard disk controller outputting to
@@ -82,7 +82,7 @@ lrb	lrbs	<>;			load request block
 char_mode	dw	?;	character mode--attribute setting & offset
 char		dw	?;	character position on 25th line (cursor)
 b_count		dw	?;	count down for blinking time
-cu_table	dw	1+5*10 dup (?);	list of boot units, room for 10 devices
+cu_table	dw	1+5*10 dup (0);	list of boot units, room for 10 devices
 blink_toggle	db	?;	toggle for blinking prompt on/off
 
 
@@ -99,8 +99,8 @@ ccb		ccbs	<>;		omninet command control block
 ;
 fldma		dd	?;	current dma address
 curspd		dw	?;	current speed of motor
-curtrk		db	2 dup (?);	current track for drives A/B
-state		db	2 dup (?);	state of disk in drive (for Vicki)
+curtrk		db	2 dup (0);	current track for drives A/B
+state		db	2 dup (0);	state of disk in drive (for Vicki)
 sec		db	?;	sector work variable
 trk		db	?;	track work variable
 seccnt		db	?;	count down of number of sectors to read
@@ -122,7 +122,7 @@ bstck	equ	$;
 ;	character set/font definition table
 ;
  	org	400h;
-dot_ram	dw	(?);
+dot_ram	dw	(0);
 
 
 
@@ -132,7 +132,7 @@ dot_ram	dw	(?);
 ;	may be overlayed by the system load)
 ;
 	org	0C00h;
-bootr	db	(?);	label/working buffer
+bootr	db	(0);	label/working buffer
 
 
 data ends;

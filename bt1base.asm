@@ -35,15 +35,15 @@ data	segment public 'data'
 	extrn	sw_entry:word;		if not to enter O/S, alternate entry	extrn	bootr:word;		boot's buffer in segment 0
 	extrn	dot_ram:word;		font table in segment 0
 include bt1ul.str
-	extrn	cu_table:word;		current control unit dispatch table
+	extrn	cu_table:uls;		current control unit dispatch table
 	extrn	char:word;		cursor position
 	extrn	char_mode:word;		character attributes
 	extrn	blink_toggle:byte;	toggle on/off for blinking arrow
 	extrn	b_count:word;		working variable
 include bt1bvt.str
-	extrn	bvt:byte;		the boot vector table structure
+	extrn	bvt:bvts;		the boot vector table structure
 include bt1lrb.str
-	extrn	lrb:byte;		load request block structure
+	extrn	lrb:lrbs;		load request block structure
 
 data	ends;
 
@@ -69,10 +69,10 @@ ioports		ends;
 
 serial	segment public
 
-a_data	db	(?)		; data port "a"
-b_data	db	(?)		; data port "b"
-a_ctl	db	(?)		; control port "a"
-b_ctl	db	(?)		; control port "b"
+a_data	db	(0)		; data port "a"
+b_data	db	(0)		; data port "b"
+a_ctl	db	(0)		; control port "a"
+b_ctl	db	(0)		; control port "b"
 
 data_available	equ	1	; data available at the chip
 any_errors	equ	30h	; error status bits
@@ -87,10 +87,10 @@ serial	ends
 
 timer	segment public
 
-adata	db	(?)
-bdata	db	(?)
-	db	(?)
-ctl	db	(?)
+adata	db	(0)
+bdata	db	(0)
+	db	(0)
+ctl	db	(0)
 
 timer	ends
 
@@ -247,8 +247,8 @@ boot2:;					initialization code
 	xor	ax,ax;
 	mov	ds,ax;			establish segment 0 as data area
 
-	mov	ds:[8],0CFF9h;		set up nmi vector again
-	mov	ds:[0Ah],0F301h;	(trick explained in power-on/reset)
+	mov	word ptr ds:[8],0CFF9h;		set up nmi vector again
+	mov	word ptr ds:[0Ah],0F301h;	(trick explained in power-on/reset)
 
 	mov	ss,ax;			segment 0 as stack area, too
 	lea	sp,dgroup:bstck;	set up stack area
@@ -361,11 +361,11 @@ check_cus:;
 	add	bp,size uls;		next device
 
 	mov	ax,cu_table.wrk_unit[bp];	check unit's type
-	cmp	ax,last_cu;		at end of table ?
+	cmp	ax,word ptr last_cu;		at end of table ?
 	jz	retry_boot;		yes, done (try to boot)
 
 	mov	ax,cu_table.wrk_unit[bp];	get device type
-	cmp	ax,ignore;		should still try device ?
+	cmp	ax,word ptr ignore;		should still try device ?
 	jz	check_cus;		no, skip
 
 	mov	lrb.dun,ax;		set into load request block
@@ -428,7 +428,7 @@ test_pattern:;
 	mov	cx,16*1024/2;		length of 16K bytes (8K words)
 	rep	stosw;			fill memory
 
-	cmp	ax,0;			memory tested and zeroed ?
+	cmp	ax,word ptr 0;			memory tested and zeroed ?
 	jz	section_ok;		yes (for this section)
 
 	xor	di,di;			offset of zero
@@ -436,7 +436,7 @@ test_pattern:;
 	repz	scasw;			test memory
 	jnz	memory_tested;		found end of usable memory
 
-	xor	ax,0FFFFh;		change to test pattern #2
+	xor	ax,word ptr 0FFFFh;		change to test pattern #2
 	jl	test_pattern;		and test with that
 	xor	ax,ax;			perform third test pattern
 	jmp short test_pattern;
@@ -450,7 +450,7 @@ section_ok:;
 
 	push	es;			save registers
 	call	cu_oprn;		perform the ready test
-	inc	lrb.dun;		check drive 1
+	inc	word ptr lrb.dun;		check drive 1
 	call	cu_oprn;		perform the ready test
 	pop	es;			restore registers
 
@@ -458,7 +458,7 @@ no_floppy_drive:;
 	mov	ax,es;
 	add	ax,16*1024/16;		next 16K (in paragraphs)
 	mov	es,ax;
-	cmp	ax,896*(1024/16);	at end of memory ?
+	cmp	ax,word ptr 896*(1024/16);	at end of memory ?
 	jnz	test_section;		no, test next 16K
 
 memory_tested:;
@@ -564,7 +564,7 @@ try_boot:;
 	add	bp,size uls;		next device
 
 	mov	ax,cu_table.wrk_unit[bp];	check unit's type
-	cmp	ax,last_cu;		at end of table ?
+	cmp	ax,word ptr last_cu;		at end of table ?
 	jz	serial_boot;		yes, stick in a serial boot
 	jmp	not_last;		no, skip
 
@@ -761,7 +761,7 @@ set_blinking:;
 ;	process the device (if it hasn't been thrown out of the list)
 ;
 	mov	ax,cu_table.wrk_unit[bp];	get device type
-	cmp	ax,ignore;		should still try device ?
+	cmp	ax,word ptr ignore;		should still try device ?
 	jnz	process_device;		yes, skip
 	jmp	try_boot;		no, skip
 
@@ -776,7 +776,7 @@ process_device:;
 retry_this_device:;
 	inc	b_count;		count time device in this state
 	mov	ax,b_count;
-	cmp	ax,blnkflp;		time to blink ?
+	cmp	ax,word ptr blnkflp;		time to blink ?
 	jnz	no_blink;		no, skip
 
 	xor	blink_toggle,1;		toggle blink state (on/off)
@@ -801,7 +801,7 @@ no_blink:;
 	mov	ax,5;			wait 500 microseconds before retrying
 	call	time;
 
-	dec	cu_table.counter[bp];	decrement ready-wait counter
+	dec	word ptr cu_table.counter[bp];	decrement ready-wait counter
 	jnz	floppy_wait;		skip, need to wait
 	jmp	try_boot;		timed out, try another boot device
 
@@ -928,7 +928,7 @@ enough_room:;
 	mov	word ptr lrb.dma,0;	with an offset of zero
 
 	mov	ax,b_count;		paragraphs in a sector
-	mul	lrb.blkcnt;		times number of sectors to read
+	mul	word ptr lrb.blkcnt;		times number of sectors to read
 	mov	b_count,ax;		is actual paragraphs to read
 
 	mov	lrb.op,read;		set operation to read
@@ -946,7 +946,7 @@ enough_room:;
 ;
 read_ok:;
 	mov	ax,b_count;		if still have a partial sector left,
-	cmp	ax,lrb.loadpara;
+	cmp	ax,word ptr lrb.loadpara;
 	jz	none_left;		(skip, nothing left)
 
 	les	di,dword ptr lrb.dma;	remember ending dma address
@@ -1461,7 +1461,7 @@ set_crt_reg	proc;
 
 	mov	byte ptr es:[crt_rg+1],bl;
 
-put_ret:;
+put_ret::
 	ret;
 
 set_crt_reg	endp;

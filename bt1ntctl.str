@@ -61,7 +61,7 @@ boot_ret	equ	00h;	expected return function for boot requests
 ;	return codes
 ;
 sys_ok		equ	0;	good return code
-wait		equ	1;	server is not ready at this time
+wait_		equ	1;	server is not ready at this time
 ;				higher error codes indicate remote errors
 
 

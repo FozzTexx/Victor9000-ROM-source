@@ -51,65 +51,65 @@ poweron	ends;
 extra_io	segment at 0E000h;
 
 		org	0000h;		the programmable interrupt controller
-pic_port0	db	0
-pic_port1	db	0
+pic_port0	db	?
+pic_port1	db	?
 
 		org	8020h;		the parallel interface port
 prlddr		equ	0FF03h;		parallel data direction register
-parallel0	db	0
-parallel1	db	0
-parallel2	db	0
-parallel3	db	0
-parallel4  	db	0
-parallel5  	db	0
-parallel6	db	0
-parallel7	db	0
-parallel8	db	0
-parallel9	db	0
-parallelA	db	0
-parallelB	db	0	
-parallelC	db	0
-parallelD	db	0
-parallelE	db	0
-parallelF	db	0
+parallel0	db	?
+parallel1	db	?
+parallel2	db	?
+parallel3	db	?
+parallel4  	db	?
+parallel5  	db	?
+parallel6	db	?
+parallel7	db	?
+parallel8	db	?
+parallel9	db	?
+parallelA	db	?
+parallelB	db	?	
+parallelC	db	?
+parallelD	db	?
+parallelE	db	?
+parallelF	db	?
 
 		org	8040H;		keyboard port 6522 register addresses
 kbdddr		equ	03FFh;		keyboard data direction register
-keyboard0	db	0
-keyboard1	db	0
-keyboard2	db	0
-keyboard3	db	0
-keyboard4	db	0
-keyboard5	db	0
-keyboard6	db	0
-keyboard7	db	0
-keyboard8	db	0
-keyboard9	db	0
-keyboardA	db	0
-keyboardB	db	0
-keyboardC	db	0
-keyboardD	db	0
-keyboardE	db	0
-keyboardF	db	0
+keyboard0	db	?
+keyboard1	db	?
+keyboard2	db	?
+keyboard3	db	?
+keyboard4	db	?
+keyboard5	db	?
+keyboard6	db	?
+keyboard7	db	?
+keyboard8	db	?
+keyboard9	db	?
+keyboardA	db	?
+keyboardB	db	?
+keyboardC	db	?
+keyboardD	db	?
+keyboardE	db	?
+keyboardF	db	?
 
 		org	8080H;		user port 6522 register addresses
 usrddr		equ	0FFFFh;		user port data direction register
-user0		db	0
-user1		db	0
-user2		db	0
-user3		db	0
-user4		db	0
-user5		db	0
-user6		db	0
-user7		db	0
-user8		db	0
-user9		db	0
-userA		db	0
-userB		db	0
-userC		db	0
-userD		db	0
-userE		db	0
-userF		db	0
+user0		db	?
+user1		db	?
+user2		db	?
+user3		db	?
+user4		db	?
+user5		db	?
+user6		db	?
+user7		db	?
+user8		db	?
+user9		db	?
+userA		db	?
+userB		db	?
+userC		db	?
+userD		db	?
+userE		db	?
+userF		db	?
 
 extra_io	ends;
 
@@ -267,7 +267,7 @@ test_screen_ram:;
 	cld;				auto-incrementing locations
 	rep	stosw;
 
-	cmp	ax,0;			done ?
+	cmp	ax,word ptr 0;			done ?
 	jz	screen_ram_ok;		yes.
 
 	xor	di,di;			compare starting at offset 0
@@ -275,7 +275,8 @@ test_screen_ram:;
 	repz	scasw;
 	jnz	bad_screen_ram;		error, did not match
 
-	xor	ax,0FFFFh;		switch pattern from 55AA to AA55
+	xor	ax,word ptr 0FFFFh;		switch pattern from 55AA to AA55
+;	db	35h,0ffh,0ffh	; JWasm generates 83F0FF for xor above
 	jl	test_screen_ram;	not done, test with pattern #2
 
 	xor	ax,ax;			final pattern is zeroes
@@ -370,7 +371,7 @@ tm:
 	mov	cx,(4000h-100h)/2;	length of 16K bytes
 	rep	stosw;		store ax in memory
 
-	cmp	ax,0;		through with the test ?
+	cmp	ax,word ptr 0;		through with the test ?
 	jz	test_nfatals;	yes, memory is zeroed
 
 ;
@@ -384,7 +385,7 @@ tm:
 ;
 ;	try next pattern
 ;
-	xor	ax,0FFFFh;	switch test pattern
+	xor	ax,word ptr 0FFFFh;	switch test pattern
 	jl	tm;		try the AA55 pattern
 
 	xor	ax,ax;		and then set to zeroes
@@ -437,6 +438,7 @@ cl1:;
  	inc	al;
  	loop	cl1;			clear all ISR bits
 	jmp	no_pic_fail;
+	nop
 
 pic_mask_fail:;
 	or	word ptr cs:nfatals,pic_mask_init_errflg;
@@ -489,7 +491,7 @@ keyboard_init_check:;
 	jne	no_keyboard_fail;
 
 keyboard_fail:;
-	or	word ptr cs:nfatals,keyboard_init_errflg;
+	or	word ptr cs:nfatals,word ptr keyboard_init_errflg;
 
 no_keyboard_fail:;
 ;
@@ -498,7 +500,7 @@ no_keyboard_fail:;
 user_init_check:;
 
 	mov	es:word ptr user2,usrddr;
-	cmp	es:word ptr user2,usrddr;
+	cmp	es:word ptr user2,word ptr usrddr;
 	jne	user_fail;		init DDR's and check
 
 	mov	es:word ptr user2,0000h;
@@ -518,7 +520,7 @@ user_init_check:;
 	jne	no_user_fail;
 
 user_fail:;
-	or	word ptr cs:nfatals,user_init_errflg;
+	or	word ptr cs:nfatals,word ptr user_init_errflg;
 
 no_user_fail:;
 	jmp	far ptr boot;		jump to the boot's base module

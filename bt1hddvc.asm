@@ -47,10 +47,10 @@ extrn	hdctlimg:byte;		save area for image of command to controller
 extrn	sense:byte;		4-byte area for reading sense information
 
 include	bt1lrb.str;		format of the load request block
-extrn	lrb:byte;		load request block
+extrn	lrb:lrbs;		load request block
 
 include	bt1hdlbl.str;		format of hard disk label
-extrn	bootr:byte;		label buffer in low memory
+extrn	bootr:hdlbl;		label buffer in low memory
 
 include	bt1bvt.str;		format of the boot vector table
 extrn	bvt:byte;		boot vector table to pass to O/S
@@ -442,8 +442,10 @@ hdonlpok:;
 hdonleri:;
 	jmp	hdonlerri;		error, no regions
 
+	nop
+	
 hdonlgv:;
-	cmp	al,56;			only 56 regions will fit
+	cmp	al,word ptr 56;			only 56 regions will fit
 	jbe	hdonldwl;		not too many, skip
 	mov	al,56;			only handle 56 of the regions
 
@@ -970,7 +972,7 @@ hdcmplt		proc;
 hdcmpltw:;
 	mov	al,es:hdbus;		get bus status
 	and	al,control or input or req or msg;
-	cmp	al,control or input or req;
+	cmp	al,word ptr (control or input or req);
 	jnz	hdcmpltw;		wait until in control, input, & request
 
 	mov	al,es:hdcsd;		get status
@@ -1026,7 +1028,7 @@ hdcmplu:;
 hdcmpltw2:;
 	mov	al,es:hdbus;		get bus status
 	and	al,control or input or req or msg;
-	cmp	al,control or input or req;
+	cmp	al,word ptr (control or input or req);
 	jnz	hdcmpltw2;		wait until in control, input, & request
 
 	mov	al,es:hdcsd;		get status
@@ -1092,7 +1094,7 @@ hdbsyn:;
 hdcmdyr:;
 	mov	al,es:hdbus;
 	and	al,control+msg+input;	command mode bits
-	cmp	al,control;		in control mode ?
+	cmp	al,word ptr control;		in control mode ?
 	loopne	hdcmdyr;		no, wait some more
 	jnz	hdselto;		error, timed out
 

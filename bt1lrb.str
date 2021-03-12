@@ -4,18 +4,18 @@
 lrbs	struc;
 
 
-op	dw	(?);		Operation Code
-dun	dw	(?);		Device/Unit Number
-da	dw	(?);		Physical Address on Volume
-	dw	(?);
-dma	dw	(?);		Direct Memory Address
-	dw	(?);
-blkcnt	dw	(?);		Number of Blocks in Transfer
-status	db	(?);		STATUS code returned 
-ssz	dw	(?);		Sector Size 
-loadaddr dw	(?);		Segment to Load into - 0 => Load High
-loadpara dw	(?);		Paragraph Count 
-loadentry dw	2 dup (?);	Entry Point - Seg=0 => Use "loadaddr"
+op	dw	(0);		Operation Code
+dun	dw	(0);		Device/Unit Number
+da	dw	(0);		Physical Address on Volume
+	dw	(0);
+dma	dw	(0);		Direct Memory Address
+	dw	(0);
+blkcnt	dw	(0);		Number of Blocks in Transfer
+status	db	(0);		STATUS code returned 
+ssz	dw	(0);		Sector Size 
+loadaddr dw	(0);		Segment to Load into - 0 => Load High
+loadpara dw	(0);		Paragraph Count 
+loadentry dw	2 dup (0);	Entry Point - Seg=0 => Use "loadaddr"
 
 
 lrbs	ends;

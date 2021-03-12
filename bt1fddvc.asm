@@ -159,9 +159,9 @@ data	segment public 'data'
 	extrn	sav_seccnt:byte;	permanent copy of number sectors read
 	extrn	sector_retry:byte;	retry count for reading bad sectors
 	include	bt1lrb.str;
-	extrn	lrb:byte;		load request block (I/O parameters)
+	extrn	lrb:lrbs;		load request block (I/O parameters)
 	include	bt1fdlbl.str;
-	extrn	bootr:byte;		floppy disk label buffer
+	extrn	bootr:fd_lbl;		floppy disk label buffer
 
 data	ends
 
@@ -309,10 +309,10 @@ zeroed_ok:;
 ;
 	xor	es:[read_perb],f_screset;
 
-wait:;
+wait_spd:;
 	mov	al,es:[read_perb];
 	and	al,spc_data_rdy or spc_data_rcvd;
-	jnz	wait;			speed control processor reset ?
+	jnz	wait_spd;			speed control processor reset ?
 
 
 	mov	byte ptr es:[diskout_ddb],0FFh;	direction for disk output
@@ -690,7 +690,7 @@ ack_wait2:;
 online_error:;
 	call	motor_off;		turn off the floppy's motor
 	call	desel_drvs;		turn off led's
-any_error:;
+any_error::
 	mov	ax,1;			flag an error
 	or	ax,ax;			z-flag is nz for errors
 	ret;
@@ -1310,7 +1310,7 @@ step_out	proc;
 	push	di;			save caller's register
 	lea	di,cgroup:step_out_table;address of table to step arm out
 
-step_it:;
+step_it::
 	lea	si,ioports:motor_0;	base of speed control registers
 	sub	si,bx;			select drive's register
 	mov	al,es:[si];		motor information (current position)

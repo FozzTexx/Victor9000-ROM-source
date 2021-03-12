@@ -24,7 +24,7 @@ bootopn	equ	40h;		class of boot-type operations
 data	segment 'data' public;
 
 include	bt1lrb.str
-	extrn	lrb:byte;	load request block structure
+	extrn	lrb:lrbs;	load request block structure
 
 data	ends;
 

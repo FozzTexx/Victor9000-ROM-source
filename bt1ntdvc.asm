@@ -24,14 +24,14 @@ public	nt_quiesce;		quiesce (terminate) the network load
 data	segment	public 'data';
 
 include	bt1lrb.str
-	extrn	lrb:byte;		load request block structure
+	extrn	lrb:lrbs;		load request block structure
 include	bt1ntctl.str
-	extrn	netctl:byte;		network variables and status
-	extrn	ccb:byte;		omninet command control block
-	extrn	send_buffer:byte;	transmission buffer
-	extrn	receive_buffer:byte;	receive buffer for header
+	extrn	netctl:netctls;		network variables and status
+	extrn	ccb:ccbs;		omninet command control block
+	extrn	send_buffer:boot_send;	transmission buffer
+	extrn	receive_buffer:boot_receive;	receive buffer for header
 include	bt1ntlbl.str
-	extrn	bootr:byte;		network label buffer
+	extrn	bootr:netlbl;		network label buffer
 
 data	ends;
 
@@ -46,7 +46,7 @@ data	ends;
 omniadr		equ	0E810h;		address of Omninet board I/O
 xrdybit		equ	08h;		transporter ready bit
 
-echo		equ	002h;		omninet command . . . echo test
+echo_		equ	002h;		omninet command . . . echo test
 abort		equ	010h;		                      receive abort
 init		equ	020h;		                      initialize board
 transmit	equ	040h;		                      transmit
@@ -162,7 +162,7 @@ nt_cup		proc;
 
 test_next:;
 	mov	dx,cs:tests[bx];	fetch the particular test pattern
-	cmp	dx,0FFFFh;		done ?
+	cmp	dx,word ptr 0FFFFh;		done ?
 	jz	is_there;		yes, omninet board is there
 
 	call	set_pointer;		set omninet pointer to pattern
@@ -231,7 +231,7 @@ nt_dvcrdy	proc;
 ;	do an echo test to see if a server's board is responding
 ;
 check_this_one:;
-	mov	ccb.command,echo;	command is echo test
+	mov	ccb.command,echo_;	command is echo test
 
 	xor	dx,dx;
 	mov	ccb.rra,dl;		high address is zero
@@ -274,7 +274,7 @@ command_accept_wait:;
 	jnz	try_next_server;	the transmission failed
 
 	mov	al,netctl.server_status;
-	cmp	al,wait;		server wacked us ?
+	cmp	al,wait_;		server wacked us ?
 	jz	wacked;			yes, try it again
 
 	or	al,al;			successful response ?
@@ -350,7 +350,7 @@ retry:;
 	jnz	on_line_error;		the transmission failed
 
 	mov	al,netctl.server_status;get server's response status
-	cmp	al,wait;		server wacked us ?
+	cmp	al,wait_;		server wacked us ?
 	jz	wacked2;		yes, retry the operation
 
 	or	al,al;			any error ?
@@ -359,10 +359,10 @@ retry:;
 ;
 ;	fill in the lrb from the label
 ;
-	mov	ax,bootr.blk_siz;
+	mov	ax,bootr.block_size;
 	mov	lrb.ssz,ax;		size of a block
 
-	mov	ax,bootr.blk_nbr;
+	mov	ax,bootr.block_number;
 	mov	word ptr lrb.da,ax;	starting block number
 
 	mov	ax,bootr.load;		load address
@@ -371,12 +371,12 @@ retry:;
 	mov	ax,bootr.paras;
 	mov	lrb.loadpara,ax;	number of paragraphs in image
 
-	mov	ax,word ptr bootr.start;
+	mov	ax,word ptr bootr.entry_offset;
 	mov	lrb.loadentry,ax;	entry address (offset)
-	mov	ax,word ptr bootr.start+2;
+	mov	ax,word ptr bootr.entry_offset+2;
 	mov	lrb.loadentry+2,ax;	and segment
 
-	mov	ax,bootr.max_cnt;
+	mov	ax,bootr.max_count;
 	mov	lrb.da+2,ax;		maximum blocks allowable
 
 	xor	ax,ax;			flag no error
@@ -449,15 +449,15 @@ no_leftovers:;
 	mov	dx,lrb.dma;		and offset
 	push	dx;
 
-	mul	lrb.ssz;		# blocks times size of a block
-	add	ax,net_header_size+recv_read_size;	header and ERROR byte
+	mul	word ptr lrb.ssz;		# blocks times size of a block
+	add	ax,word ptr (net_header_size+recv_read_size);	header and ERROR byte
 	push	ax;			yields maximum # bytes to receive
 
 	call	do_trans;		perform the send and receive
 	jnz	read_error;		the transmission failed
 
 	mov	al,netctl.server_status;get server's response status
-	cmp	al,wait;		server wacked us ?
+	cmp	al,wait_;		server wacked us ?
 	jz	wacked3;		yes, retry the operation
 
 	or	al,al;			any error from server ?
@@ -474,7 +474,7 @@ no_leftovers:;
 
 	add	lrb.da,ax;		increment block # to request
 
-	mul	lrb.ssz;		number blocks read times size of a block
+	mul	word ptr lrb.ssz;		number blocks read times size of a block
 	mov	cl,4;
 	shr	ax,cl;			(NOTE:  assumes block is multiple of 16)
 	add	lrb.dma+2,ax;		increment dma address (segment)
@@ -541,7 +541,7 @@ retry3:;
 	jnz	quiesce_error;		the transmission failed
 
 	mov	al,netctl.server_status;get server's response status
-	cmp	al,wait;		server wacked us ?
+	cmp	al,wait_;		server wacked us ?
 	jz	wacked4;		yes, retry the operation
 
 	or	al,al;			any error ?
@@ -634,7 +634,7 @@ do_trans	proc;
 	mov	ah,(ssocket-80h)*4+boot_ret;	socket and returned message's type
 	mov	send_buffer.msghdr_saddr,ax;	(socket is encoded in 2 msbits)
 
-	inc	netctl.msg_seq_nr;	sequence number
+	inc	word ptr netctl.msg_seq_nr;	sequence number
 	mov	ax,netctl.msg_seq_nr;	get the message's sequence number
 	mov	send_buffer.msghdr_duid,ax;
 
