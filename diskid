@@ -1,0 +1,73 @@
+                   LIBRARY COPY - DO NOT DUPLICATE
+----------------------------------------------------------------
+                             DISKID
+----------------------------------------------------------------
+DATE:			March 9, 1984
+TITLE:			Universal Boot ROM, Victor
+VERSION:		3.6
+DISKETTE ASSY P/N:	N/A
+RELEASE STATUS:		Internal to Victor Only
+S/W LIBRARY #:          1663
+OPER.SYSTEM:		Developed under:  MS-DOS, Operates:  N/A
+VERSION:		2.11
+BIOS:			2.9
+----------------------------------------------------------------
+FILES          VER:       DATE                DESCRIPTION
+----------------------------------------------------------------
+BT1INFO .DOC      3.4  11-17-83		Documentation, READ ME
+	--Batch Files for Development--
+BT1BUILD.BAT      3.4  11-17-83		Batch file to build EXE
+BT1ILINK.RSP      3.4  11-17-83		Link response file
+BT1BLINK.RSP      3.4  11-17-83		Link response file
+BT1LIST .BAT      3.4  11-17-83		Write listings to disk
+BT1SAVE .BAT      3.4  11-17-83		Archives files
+	--Assembly Language Sources--
+BT1VARS .ASM      3.4  11-17-83		Variables and data
+BT1BASE .ASM      3.6  03-08-84		Driver module
+BT1INIT .ASM      3.6  03-08-84		Power-on/Reset code
+BT1NTDVC.ASM      3.4  11-17-83		Network device driver
+BT1CHINT.ASM      3.4  11-17-83		Initializes font table
+BT1ICONC.ASM      3.4  11-17-83		Icon definitions
+BT1HDDVC.ASM      3.4  11-17-83		Hard disk driver
+BT1FDDVC.ASM      3.5  12-05-83		Floppy disk driver
+BT1CUOPN.ASM      3.4  11-17-83		I/O Dispatcher
+	--Include Files--
+BT1TTL  .INC      3.4  11-17-83		Title and copyright
+BT1ICONS.INC      3.4  11-17-83		Icon equates
+BT1NTLBL.STR      3.4  11-17-83		Network label format
+BT1LRB  .STR      3.4  11-17-83		Load Request Block
+BT1NTCTL.STR      3.6  03-08-84		Network messages
+BT1FDLBL.STR      3.4  11-17-83		Floppy label format
+BT1HDLBL.STR      3.4  11-17-83		Hard disk label format
+BT1BVT  .STR      3.4  11-17-83		Boot Vector Table
+BT1UL   .STR      3.4  11-17-83		Bootable Unit List
+	--Binhex Utility--
+BINHEX  .COM      3.4  10-22-82		BINHEX utility to use
+
+----------------------------------------------------------------
+                            NOTES
+----------------------------------------------------------------
+This is the diskette which contains all files and information
+necessary to generate the Universal Boot ROMs to be used on the
+Victor 9000 and NetWork Station CPU's.
+
+Release 3.4 is enhanced over 3.3 by correcting the bug in the
+non-fatal diagnostic checks which reset the mask registers
+instead of the interrupt registers, and fixing the problem with
+loading an O/S in an 896K system.
+
+Release 3.5 has a bug fixed.  When booting on a 2-floppy system,
+if you booted from drive B:, you could not access drive A:. This
+was a BIOS bug, but was fixed in the EPROM by ensuring that the
+stepper stage was set on both drives before the O/S took over.
+
+Release 3.6 changes network boot file server socket numbers from
+A0hex and B0hex to 80hex and B0hex; corrects the flashing screen
+when you first push the reset button; and corrects a bug in non-
+fatal error diagnostics which would occasionally report an error
+when a rampant program wrote over some I/O registers and you
+next booted (it would be corrected at next power-on).
+
+Refer to file BT1INFO.DOC for details.
+----------------------------------------------------------------
+

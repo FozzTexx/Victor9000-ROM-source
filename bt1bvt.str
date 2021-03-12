@@ -1,0 +1,36 @@
+;
+;       BOOT VECTOR TABLE FORMAT
+;
+bvts	struc;
+
+
+memsz	dw	?;		size of memory, in paragraphs
+
+btdrv	dw	?;		boot drive:
+;				high order byte = 0 left floppy
+;						  1 right floppy
+;						  2 network
+;						  3 hard disk
+;
+;				low order byte =  00h left floppy
+;						  01h right floppy
+;						  10h hard disk
+;						  20h network
+;
+
+dvclst	dw	?;		long pointer to list of devices
+	dw	?;
+dvccbs	dw	?;		long pointer to device control blocks
+	dw	?;
+
+nfatals	dw	?;		flag word for non-fatal errors
+;
+;	bit 0 (least significant bit) is pic error
+;	bit 1 is parallel port error
+;	bit 2 is keyboard I/O error
+;	bit 3 is user port error
+;
+
+
+bvts	ends;
+

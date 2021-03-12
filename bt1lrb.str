@@ -1,0 +1,22 @@
+;
+;	FORMAT OF THE LOAD REQUEST BLOCK (LRB)
+;
+lrbs	struc;
+
+
+op	dw	(?);		Operation Code
+dun	dw	(?);		Device/Unit Number
+da	dw	(?);		Physical Address on Volume
+	dw	(?);
+dma	dw	(?);		Direct Memory Address
+	dw	(?);
+blkcnt	dw	(?);		Number of Blocks in Transfer
+status	db	(?);		STATUS code returned 
+ssz	dw	(?);		Sector Size 
+loadaddr dw	(?);		Segment to Load into - 0 => Load High
+loadpara dw	(?);		Paragraph Count 
+loadentry dw	2 dup (?);	Entry Point - Seg=0 => Use "loadaddr"
+
+
+lrbs	ends;
+

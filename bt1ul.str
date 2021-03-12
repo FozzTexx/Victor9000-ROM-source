@@ -1,0 +1,50 @@
+;
+;	structure for each table element for bootable units
+;
+uls		struc;
+
+
+wrk_unit	dw	?;	**driver*cu**dev**
+;
+; BIT:	1111111000000000
+;	6543210987654321
+;	dddd0000ccccuuuu
+;	  |       |   |
+;	  |       |   |---------unit number (server #, floppy A/B, etc)
+;	  |       |
+;	  |       |-------------control unit number (usually 0)
+;	  |
+;	  |---------------------driver's number (0=floppy, 1=hard, 8=net)
+;
+
+counter		dw	?;	working count-down to wait for
+;					floppy insertion
+
+wrk_wait	dw	?;	value for floppy wait counter, above
+
+uicon		dw	?;	icon chars for this device
+;					two bytes, each with an icon index
+
+utype		dw	?; 	**bootid**flags(one_try,not_rdy)
+;
+; BIT:	1111111000000000
+;	6543210987654321
+;	dddddddd00000fwo
+;	  |           |
+;	  |           |---------device flags.  w=1 wait for not ready
+;	  |                     after a load fails (ie, floppy door must open);
+;	  |                     o=1 just do one try, if that fails, ignore
+;	  |                     the device (like in the hard disk).  f=1
+;	  |                     for failing device, quiesce it.
+;	  |
+;	  |---------------------driver's code (for the O/S)
+;				00 - left floppy
+;				01 - right floppy
+;				10 - hard disk
+;				20 - network
+;
+
+
+
+uls		ends;
+

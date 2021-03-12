@@ -1,0 +1,26 @@
+;
+;	FLOPPY DISK LABEL FORMAT
+;
+
+fd_lbl		struc;
+
+valid		dw	?;		must be ff00 to be a loadable O/S
+load		dw	?;		system load address
+paras		dw	?;		size of system
+entry_offset	dw	?;		program's start offset from segment
+entry_segment	dw	?;		program's start segment
+disk_id		db	8 dup (?);	disk identification (unused)
+system_id	db	8 dup (?);	system identification (unused)
+sector_size	dw	?;		floppy's sector size
+data_start	dw	?;		offset to unreserved region
+boot_start	dw	?;		boot sector origin
+flags		db	?;		(unused)
+int_fact	db	?;		sector interleave (unused)
+disk_type	db	?;		disk version
+reserved	db	3 dup (?);	(unused)
+speed_control	db	18 dup (?);	speed control table
+zone_table	db	15 dup (?);	locations of speed change
+sectors_track	db	15 dup (?);	sectors per track
+
+fd_lbl		ends;
+

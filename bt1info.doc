@@ -1,0 +1,706 @@
+
+		BOOT ROM IMPLEMENTATION NOTES
+
+
+This document is for maintainers and developers of the Victor/Vicki Boot
+Roms.  Information consists of an explanation of the design philosophy of
+the boot process, notes on building and debugging the boot rom, and
+an overview of the boot rom's functionality and architecture.
+
+The boot rom is located at a fixed address in memory.  This area is not
+part of regular memory, but is "hard-coded" in read-only memory.  The
+area dedicated to the Boot Rom is from FE000 to FFFFF (8K bytes).  There
+may be talk about the boot going from FC000 to FFFFF (16K bytes).  The
+area from FC000 to FDFFF is a second image of FE000 to FFFFF for certain
+versions of the CPU board, and available in others.  Since this area is not
+available for all CPU's (and there is no way to get 16K bytes of ROM on
+the board), the boot ROM really is limited to its 8K bytes.  When
+a reset occurs (also on power-on), hardware automatically vectors to
+the boot rom's code.  The rom is then responsible for loading in the
+operating system (from floppy, network, hard disk, or diagnostic load
+from the serial port), and performing whatever I/O is necessary to load
+the O/S.  Since I/O and other errors may occur, it is also important that
+the boot rom provide reasonable diagnostics so that these errors may be
+corrected (since potentially no software can be loaded, the rom is on its
+own until any I/O errors are corrected).
+
+
+1.  Philosophy
+
+The boot rom for the Victor 9000 and Vicki is responsible for loading in the
+Operating System AND NOTHING MORE.  It is important that a minimum amount of
+hardware is utilized during the boot process.  Because the boot must work to
+even load diagnostics--timers, interrupts, etc. are not used during the boot
+process (it's just one more thing to fail and prevent diagnosis of the pro-
+blem).  The philosophy is to ensure a good chance of loading software (not
+necessarily optimizing performance, and certainly not exercising the machine).
+
+A second effect of doing only what is required to load software is that
+the state of the machine following the boot rom's execution shall be indet-
+erminate.  The boot rom will not engage in system initialization (this is
+left to the operating system).  There is little enough room in the ROM
+for this type of set-up, plus we run the risk of hanging the ROM every time
+additional hardware is accessed.  Only hardware which is required should
+be dealt with.
+
+One exception to this is certain Diagnostic and Field Service routines.
+Because the boot rom is the only way to get software to execute, special
+code for loading diagnostics during manufacturing test and field problem-
+isolation is included.  Also Field Service has some code added to aid in
+detection of the cause of a boot failure and to provide a list of recov-
+erable errors (failures which did not stop the boot process, but may be
+indicative of later problems), which are available to Field Service person-
+nel for investigation.
+
+
+
+2.  Building and Debugging
+
+
+	Development
+
+To conserve space (the ROM is only 8k bytes), the boot rom is written in
+assembly language.  Batch files exist for building, archiving, and outputting
+listing files during the development process.  All boot files are in the
+format xxxyyyyy.zzz where xxx is an identifier of which boot product the file
+belongs to (at this time, there are two boot products, VCK--the Vicki boot
+rom, and BT1--the universal boot rom for the V9000).  The Vicki product has
+differences in only some of the files, and uses BT1 files commonly with the
+Victor 9000 boot.  The important differences are in the xxxINIT module
+(different version numbers), xxxBASE (different settings for CRT contrast),
+and the xxxFDDVC module (totally different way to do I/O and control the
+floppy drives).  Batch files are:  xxxSAVE.BAT, xxxLIST.BAT, and
+xxxBUILD.BAT .  The save job will copy all "important" files for the xxx
+boot product to a formatted, scratch floppy disk.  The list job will copy
+all .LST files for the xxx product to a diskette with your favorite list
+programs on it.  The build job will build (assemble and link) the boot rom
+for the xxx product.
+
+
+	Debug
+
+Use MS-DOS 2.0 in the development of the boot rom (I cannot vouch for debug
+techniques in other environments).
+
+The DEBUG package may be used effectively to debug and validate most of the
+boot rom's code.  Once the .EXE's are produced, they may be tested (separ-
+ately).
+
+For testing the xxxINIT.EXE module, many of the segments of code
+must be skipped over (or else they'll clobber your O/S).  Skip over the
+instruction to "shut down the CRT" (otherwise you're in the dark).  The
+checksum code may be executed under control (to check if it's accessing
+what it's coded to).  The check for the diagnostic rom at D0000 should be
+operable (don't be concerned if it appears that ROM is present if your machine
+doesn't have that much memory--not having a JMP instruction will make the
+test fail).  Testing screen ram is fine if you don't try to stop half way
+through (this will work, but it's an ugly sight to behold).  Testing the
+first 16K can be tested by substituting an address (in ES:) exceeding your
+debugged program (so it's out of the way).  This is all you can do to test
+the INIT module.  Stay away from the code to test for non-fatal errors in
+the PIC, keyboard, etc. ports--it'll clobber your system.  This code may
+only be tested after a ROM is built.
+
+For testing the BT1BOOT.EXE module, a much more comprehensive debugging
+can be done.  There are still areas to watch out for, however.  All of the
+following tricks and things to look out for are in the BT1BASE module.
+Don't worry about the "overscore" cursor, when ROMs are built, it will
+go away (this is caused by interaction with DEBUG and the boot code).  Once
+in DEBUG, and before executing the module, set 0000:0 to a 1 and 0000:1 to a
+zero (this will bypass the boot's memory test--and allow entry of the pro-
+gram).  Also, the word at 0:300 must contain the segment (remember to
+reverse the bytes) of the end of memory.  This is used by the boot to
+determine where to load the Operating System.  Memory looks like this:
+
+
+		Real End of Memory (say segment 4000 on a 256K machine)
+
+		Operating System
+
+
+		.......empty space.........
+
+
+		BT1BOOT (program being DEBUGGED)
+
+		DEBUG.COM
+
+		Low Memory Junk
+
+
+The trick is to set the end of memory to an area below (less than) the
+start of the operating system.  The boot will load the O/S in what it
+believes to be high memory (that is, below the Operating System you're
+using to DEBUG).  If "empty space" is big enough to hold the new O/S,
+you're in fat city (if not, add more memory to your machine).  Following
+testing the boot (if it works) you'll be executing the new (lower) O/S.
+This can't go on forever, so it's a good idea to RESET after each O/S is
+successfully loaded (for a failure, better RESET, because you may have
+trashed the O/S anyway).  So set 0:300 to 0 and 0:301 to the high order
+byte of the segment address below your operating system.  Remember that
+if the O/S doesn't fit, you'll crash your program (the boot checks if
+the O/S fits in the area from High-Memory to 0--not from High-Memory to
+the end of your debug session).  For the VICKI, be sure to skip over
+the code which sets the screen contrast/brightness (it will turn your
+screen off on a V9000).
+
+To test the memory-test logic, instead of the above, have debug execute
+the memory test logic, but start at the beginning of your "empty area"
+instead of 16k, and end at the end of the "empty area" (instead of 896k).
+This can be done once to see if the memory test/size code is reasonable.
+
+This module can be executed "as-is" (with the above preparation).  The
+character set font is positioned as to be added to an inconsequential area
+of the existing font (so debug is operable).
+
+You may now freely debug the boot code (better write-protect any floppies
+you're using and be prepared to clobber any hard disk data you have).
+
+One last caution.  During the load of the last sector of the O/S, the CRT
+is turned off (this is because the font area is used as a buffer).  You may
+either set a break-point after the CRT is back on, or skip over the code
+which turns the CRT off.
+
+
+
+
+	Burning ROMs
+
+Once you've debugged as much as you can, ROMs need to be created.  Use the
+program SYSLOC (from the Programmer's Toolkit):
+
+SYSLOC xxxBOOT  .BIN  /S
+
+SYSLOC xxxINIT  .BIN  /S
+
+to create a .BIN file from the .EXE (create a binary image of the code).
+If either SYSLOC gets an error, dump the .EXE file's contents to find the
+relocatable code which you've added.  Change the addressing mode that
+you're using so that the .EXE file will be relocatable respective to its
+segment definitions.
+
+
+Now, we'll create a ROM image.  Run DEBUG (with no parameters), and issue
+the following commands:
+
+
+-fcs:1000 L2000 0                   to fill memory with zeroes
+
+-nxxxboot.bin                       the base boot program and drivers
+-l1000                              load the main program at cs:1000
+-nxxxinit.bin                       the boot's initial entry point
+-l2D00                              is at 1D00 more (the xxxINIT module's
+                                    starting address, which was originally
+                                    based upon its size)
+                                    (Currently FFD0:0 minus FE00:0)
+
+
+          the boot image is now at cs:1000 to cs:2fff
+
+-rcx <- 1000                        will checksum 1000 words
+-rsi <- 1000                        starting at cs:1000
+-rax <- 0                           initialize checksum accumulator
+-ecs:500 <- 2e 03 04 46 46 e2 f9    program to compute the checksum
+-rip <- 500
+-g507                               execute the checksummer
+
+
+          the boot image's checksum is in AX
+
+compute 2152 hex minus AX (you can use "-h2152 xxxx")
+
+-ecs:2ffc <- low byte  high byte    store the checksum
+
+
+           checksum is stored in the image
+
+-rbx <- 0                           set high-order of file's length
+-rcx <- 2000                        low-order length in bytes
+-nxxximag.bin                       output file name
+-w1000                              write out the image from cs:1000
+
+
+By the way, always use a separate checksum routine.  If you use the ROM
+code's checksum routine, DEBUG will put the INT 3 instruction in the code
+you're checksumming, producing an error in one of the bytes by the sub-
+stitution of the CC hex opcode.
+
+You now have in the file xxximag.bin the ROM image.  You should run DEBUG
+again to compute the checksum (as above).  The checksum program will probably
+still be in memory.  The resulting checksum the second time should be (in AX)
+2152 hex.  If not, try again, with all those numbers you've probably made a
+mistake, and better finding it now than after the ROM's made.  By the way,
+the checksum value was chosen because empty ROM or malfunctioning ROM's may
+sum to FFFF or 0000 the value 2152 is NOT(DEAD hex).
+
+
+Run the program BINHEX (on this disk) to produce a hex source listing of the
+ROM which is suitable for down-loading to the DATAIO ROM-BURNER.
+
+BINHEX xxximag.bin   xxximag.hex
+
+
+-----------------------------------------------------------------------------
+FOR FINAL VERSION:	the document control people require a hex listing
+of the ROM for release of the EC.  To do this, issue the following commands--
+
+	DEBUG > HEXLIST			debug with output redirected to a file
+	Nxxximag.bin			you won't see this (it's sent to disk)
+	L1000				load the hex image (it's ASCII)
+	dcs:1000 l2000			prints the ROM's values to the file
+	q				(it will take a while)
+
+The file HEXLIST can now be manipulated with PMATE (from the programmer's
+toolkit).  Use an old rom hex listing for the format.  Primarily, the segment
+addresses must be changed (use global changes/macros for this), headings must
+be added, and the file split into two (one for the FE00:0 rom, and one for the
+FF00:0 rom).  For Vicki, since the rom split-up is even/odd bytes rather than
+splitting it in half, you've got some additional PMATE work to do at the start
+(have fun).  An alternative approach is to install the new boot rom in your
+machine and do a DEBUG dump (so the addresses won't have to be changed).
+------------------------------------------------------------------------------
+
+
+Now, trundle off to the lab with xxximag.hex, term (terminal emulator program
+from the library), and an operating system on a disk.  You need the DATAIO,
+hooked by a serial cable to a V9000, 2 clean 2732 prom's, and your disk.
+
+Run term on the V9000.  Select a baud rate of 4800, and the correct port.
+Select a file name (alt-A, alt-B, f) of xxximag.hex .  At the DATAIO,
+turn it on (wait for self-test to finish), press:
+
+SELECT
+83
+START				enters the 83
+START
+
+It will display Intel MDS format (or something like that).
+
+COPY				copy from
+PORT				I/O port (serial)
+0				address 0 (byte 0 of the serial stream)
+START
+2000				for a length of 2000 bytes
+START
+RAM				copy to the DATAIO's memory
+0				at address 0
+START
+
+The DATAIO will display INPUT PORT and a clock, when the hands move,
+it's receiving.  Go to term and type the transmit command (ALT-A, ALT-B,
+t).  The file will be sent (you've got 5 to 10 minutes.
+
+
+-------------------------------------------------------------------------
+If this is for VICKI, you've got to split odd and even bytes:
+
+SELECT
+A5				splitting function
+1000				symmetric to address 1000 (0 to 2000)
+START
+
+It will display SPLIT and the clock, then **.
+------------------------------------------------------------------------
+
+
+
+Put the ROM labelled FE (V9000) or EVEN (VICKI) in.
+
+COPY
+RAM				copy from DATAIO memory
+0000				address 0
+START
+1000				length of 1000 (half per ROM)
+START
+DEVICE				to ROM device
+0000				start at offset 0 in ROM
+START
+1924				description of 2732 ROM
+START
+
+Now, you've got to wait while the PROM is programmed.  When completed,
+insert the second rom (labelled FF or ODD).  Use the same copy sequence
+(above), but start at address 1000 instead of 0000 (the 0000 directly after
+the RAM is changed to 1000).
+
+Now you'll probably have to use the ISIS and ICE-86/88 to debug in a real
+environment.
+
+
+
+3.  Functionality and Architecture
+
+For your information, also submitted to the library with this product are
+definition of the Omninet protocol, and hard disk label format.
+
+The following are the source files for the boot roms:
+
+ File Name	Description
+------------------------------------------------------------------------------
+xxxTTL  .INC	title and legal disclaimer to be "included" in all sources
+
+
+xxxINIT .ASM	initial power-on/reset code, this module is presently "hard-
+		located" at FFF0:0 (and may be up to 100hex bytes long), it
+		is linked by itself as a single module
+xxxBASE .ASM	module following power-on/reset, main driver for boot process,
+		this module must be the first one linked with all other modules
+		(except xxxINIT) and is "hard-located" at FE00:0 (and may be
+		2000hex minus 100hex long)
+xxxCHINT.ASM	initializes the character font
+
+
+xxxCUOPN.ASM	dispatches control unit operations, calls I/O drivers to
+		process the "logical access" requests it receives
+xxxNTDVC.ASM	network device handler, does all network I/O
+xxxHDDVC.ASM	hard disk device handler, does all hard disk I/O
+xxxFDDVC.ASM	floppy disk device handler, does all floppy disk I/O
+
+xxxVARS .ASM	variable definitions, these are located starting at 0000:0
+		since the ROM can't be written to (this area is not included
+		in the length of the boot rom's code)
+xxxICONC.ASM	icon character font definitions, bit-mapped icons for the CRT
+
+xxxBVT  .STR	structure definition for the "Boot Vector Table," this is an
+		area in low memory (0:300) used for Software (O/S, Diagnostic)
+		communications
+xxxUL   .STR	structure definition for the "Unit List," this is a table
+		of various control units and their characteristics used by
+		the xxxBASE.ASM module to select control units (devices) to
+		boot from
+xxxLRB  .STR	structure definition for the "Load Request Block," this is
+		a parameter list created by xxxBASE.ASM, passed to
+		xxxCUOPN.ASM, and to the specific device driver describing
+		a generic logical boot-related operation to perform
+xxxICONS.INC	include file of equates for:  the character set indexes of
+		each icon, and icon positions on the CRT
+xxxFDLBL.STR	structure definition of the floppy disk's label
+xxxNTLBL.STR	structure definition of the network server's label
+xxxNTCTL.STR	structure definition of network control protocol
+xxxHDLBL.STR	structure definition of the hard disk's label
+
+------------------------------------------------------------------------------
+
+
+
+A brief explanation of the boot sequence is now given.  This is not intended
+as an implementations specification.  It will introduce you to the boot and
+allow you to more easily understand the code.  I hate to say this, but there
+really is good documentation in the listings' comments.
+
+
+Upon reset or power-on, the module xxxINIT.ASM is given control.  This module
+gets comfortable in the machine (set the NMI interrupt vector, turns off the
+CRT), and sets the BOOT OPTION FLAG to zeroes (that is, memory will be tested
+and the loaded program (O/S) will be executed).  The ROM's checksum is verified,
+and the diagnostic ROM at D000:000 is checked for.  The boot supports the cap-
+ability for a ROM to exist at D000:0 the ROM must start with a JMP instruction,
+E9.  If it is present, the boot will vector to that ROM (and let the diagnostic
+do what they will).  The first 16K of memory is verified (except for the first
+100hex bytes, which is a save area for software).  Screen Ram is tested, non-
+fatal errors are checked for in the PIC, keyboard, parallel, and user ports; and
+the xxxINIT module jumps to xxxBASE for the boot.
+
+xxxBASE is passed control by xxxINIT (in which case the boot option flags are
+zeroed) or may be jumped to directly by software (with interrupts disabled).
+See below for Software usage of xxxBASE.  xxxBASE sets up interrupt vectors,
+the stack, copies the table of units to boot from to RAM (since it will be
+written into), and sets up the CRT screen.  The floppy LED's are blinked to
+indicate to the outside world that we're alive.  All load units are polled
+for their existance (this eliminates trying to later boot from devices which
+are not present, and allows a single call for set-up of the devices).  A
+loop is then entered which tries to boot the machine.  The sequence of this
+loop is:
+
+	1.  call all I/O drivers to reset them
+	2.  test and size memory (if the flag does not indicate to bypass this)
+	3.  loop to find a device which is ready to boot from--
+		a.  check the serial port for a diagnostic boot
+		    (if it is present, boot from that, otherwise continue)
+		b.  check any other units which are present (ie, attached)
+		    if they are ready to boot, in the order left floppy,
+		    right floppy, network, hard disk (for floppies, wait
+		    a while to allow insertion on V9000; for floppies on
+		    VICKI, the user must reset the machine after insertion).
+		    If a device is ready, go to set 4 otherwise repeat step 3.
+	4.  put the device on-line (that is, read its label)
+	5.  verify that the system to load will fit in memory
+	6.  load the system (read the last sector into a buffer at dot_ram
+	    so that a partial last sector will not exceed memory bounds
+	    and write on memory mapped to I/O)
+	7.  execute the software
+
+
+
+
+
+		External Interfaces to the BOOT ROM
+
+
+Refer to the Operator's Reference Guide publication for information on the
+operator's interactions with the Boot Rom.
+
+
+Reset/Power-On Vector		FFFF:0 to 4 is the JMP instruction which hard-
+				ware executes on a system reset or power-up.
+				This JMP enters the xxxINIT.ASM module.
+
+
+
+xxxBASE Entry Point		FFFF:5 to 9 is the JMP instruction which enters
+				the xxxBASE module.  This vector may be used
+				by software which has set the BOOT OPTION FLAG
+				to perform loading functions (but not a real-
+				live boot).  For example, the diagnostic ROM
+				at D000:0 may call this routine when it wants
+				to load software, after it has determined that
+				the computer is operational.  Interrupts must
+				be disabled before jumping to this address !!!
+				NOTE:  when this entry is used, the flags at
+				0000:00 and in the Boot Vector Table (below)
+				must be properly set by the caller !!!!!
+
+
+
+AREA AT 0000:00 TO 0000:FF	This area of memory is reserved by the boot.
+				It is not tested or set to zero.  For this
+				reason, any data stored in this area by soft-
+				ware will remain intact between boots (unless
+				power is lost).  This is the area in which
+				MS-DOS 2.0 saves the date and time, for
+				example.  The BOOT OPTION FLAG and Saving
+				of Program's Registers areas, below, are
+				already spoken for, however.
+
+
+
+BOOT OPTION FLAG		The word is at location 0000:0.  The
+				word consists of 2 single-byte flags:
+
+				0000:0--if this byte is zero, the boot module
+				will perform normal memory testing and sizing.
+				If this byte is non-zero, memory will not be
+				tested and the memory size used by the boot
+				will be defined by the BOOT VECTOR TABLE.
+
+				0000:1--if this byte is zero, the boot module
+				will pass control to (jump to) the loaded
+				software, as is normal.  If this byte is non-
+				zero, upon completion of the software load,
+				the boot will perform an INT 255 (vectoring
+				to the software whose address is in SW_ENTRY,
+				below.  The software which is then
+				given control may look into the Load Request
+				Block (below) to ascertain the loaded O/S's
+				entry point, etc.
+
+SW_ENTRY			set this double word (at 0000:2) to your
+				entry address if you set 0:1 to non-zero.
+
+				These flags are only pertinent when software
+				vectors to the boot xxxBASE module (that is
+				through a jump to FFFF:5), and not on a reset
+				or power-up.
+
+
+
+
+Save of Program's Registers	When a reset/power-on boot occurs, the
+				registers are saved in low memory (in case
+				a program was running which needs debugging):
+
+				SP--at 0000:7E
+				AX--at 0000:7C
+				BX--at 0000:7A
+				CX--at 0000:78
+				DX--at 0000:76
+				SI--at 0000:74
+				DI--at 0000:72
+				BP--at 0000:70
+
+
+
+BOOT VECTOR TABLE (BVT)		The BVT is located at 0:300 and is used
+				for the boot ROM to pass information to
+				the loaded software.  The following items
+				are in the BVT.
+
+
+BVT Memsz			This is the size of memory, in paragraphs.
+				This word, at 0:300, can be used by software
+				following the boot load process (the O/S)
+				as the segment address of the end of memory
+				plus one.  This word may also be used in
+				conjunction with the BOOT OPTIONS FLAG word
+				for software to tell the boot ROM what to
+				use as the end of usable memory.
+
+
+BVT Btdrv			This word, at 0:302, identifies to the loaded
+				software which device was used to load it:
+
+				High Order Byte = 0 left floppy
+						  1 right floppy
+						  2 network
+						  3 hard disk
+
+				Low Order Byte  = 00hex left floppy
+						  01hex right floppy
+						  10hex hard disk,controller 1
+						  20 to 70, controllers 2 to 7
+						  80hex network, server 0
+						  81 to 89, server 1 to 9
+
+				The above values are an index to the boot
+				device (high order), and an encoding of the
+				driver (low order byte, most significant
+				nibble), and the particular device (low
+				order byte, least significant nibble).
+
+
+BVT Dvclst, Dvcccbs		These are two long pointers reserved for
+				future usage by the Operating System as
+				a base pointer for a list of devices,
+				and a list of device control blocks,
+				respectively.  Dvclst is at 0:304, Dvcccbs
+				is at 0:308.
+
+BVT nfatals			This word flags any non-fatal errors found
+				by the INIT module:
+
+				bits 15 to 12 set to 1--the PIC
+				bits 11 to 08 set to 2--the parallel port
+				bits 07 to 04 set to 3--the keyboard
+				bits 03 to 00 set to 4--the user port
+
+				This word, 0:30C,D should be zero if xxxBASE
+				is directly jumped to by a program.
+
+
+
+LOAD REQUEST BLOCK (LRB)	The LRB immediately follows the BVT, at
+				address 0:30E.  This structure is the
+				request block that was used to request the
+				I/O driver to load the Operating System.
+				Some information in it may be helpful to the
+				loaded software.
+
+
+LRB Reserved			0:30E and 0:30F are reserved by the Boot Rom.
+
+
+
+LRB Device/Unit			0:310,1 WORD of the load device's controller
+				and unit number:
+
+				Bits 15 to 12 = Driver's Index
+						0-floppy
+						1-hard disk
+						2-network
+
+				Bits 11 to 8  = Reserved for Future Use
+
+				Bits 7 to 4   = Control Unit Number
+						(0 for present devices)
+
+				Bits 3 to 0   = Device's Number
+						0/1 for left/right floppy
+						0/1 for hard disk controller
+						0 to 9 for server's number
+
+
+LRB Reserved			0:312 to 0:31E reserved for Boot ROM usage.
+
+
+LRB Load Address		The word at 0:31F is the paragraphs at which
+				the software was loaded.
+
+LRB Reserved			0:321 and 0:322 are reserved by the Boot ROM.
+
+
+LRB Load Entry			The long pointer at 0:323 is the entry address
+				for the loaded software.
+
+				
+
+
+Error codes for Field Service	When unrecoverable I/O errors are detected
+				by the boot ROM, and the screen is not
+				operational, the boot rom sends information
+				out of I/O port FFFFhex:
+
+				01--unreproducable error in screen ram
+				    (when we tried to isolate the failing
+				    bit, the test passed)
+				02--bad checksum in boot ROM
+				03--unreproducable error in first 16K of
+				    memory
+				04--internal (programming, CPU) error
+				1x--single-bit error in screen ram,
+				    x is the failing bits' number (0-F)
+				    where F is the most significant bit
+				2x--multiple-bit error in screen ram,
+				    x is one of the failing bits' numbers
+				    (0-F) where F is the most significant
+				    bit.  x is the first erroneous bit
+				    found starting at the most significant
+				    bit
+				3x--single-bit error in first 16K of memory
+				4x--multiple-bit error in first 16K
+
+				For all FE errors, output port FFFF hex
+				is written to with the single-byte error
+				code, in a loop.  For memory errors, the
+				loop looks like this:
+
+				LOOP:;
+					OUT	0FFFFh,error_code;
+					MOV	WORD PTR location,pattern;
+					MOV	BX,WORD PTR location;
+					JMP	LOOP
+
+				Where location is the failing memory
+				location.
+
+
+
+Version				FFFF:A,B is the two-byte version number of
+				the ROM (remember that FFFF:A is the least
+				significant byte, FFFF:B the most significant
+				byte.  Possible values are:
+
+				AAAA--for floppy-only ROMs
+				01FF--for floppy/hard disk ROMs
+				F1F1--for the diskless NetWork Station
+				F2F2--for the VICKI universal ROM
+				F3F3--for the V9000 universal ROM
+
+
+Checksum			FFFF:C,D is the checksum fudge word.  The
+				ROM's checksum is computed as an addition
+				of all the words in the ROM (FE00:0 to FFFF:F).
+				This total should equal 2152 hex (NOT DEADhex).
+
+
+IBM PC Compatibility Flag	FFFF:E,F are FFhex since some applications
+				check this word to see if they are running
+				on an IBM PC or XT (we say we're an XT).
+
+
+
+Diagnostic ROM at D000:0	If a ROM is to take control upon power-on/
+				reset, it may be plugged in at address D000:0
+				and must start with a JMP instruction, opcode
+				E9.  This ROM will be jumped to (at address
+				D000:0) following a power-on or reset immed-
+				iately after the boot ROM saves the program's
+				registers, and validates its checksum.
+
+
+
+Serial Boot Capabilities	If the serial port A's control lines have
+				RING INDICATOR, DATA CARRIER DETECT, and
+				DATA SET READY, then 512 bytes will be loaded
+				from that port at 1200 baud, placed into
+				memory at 0:4000 and jumped to.
+

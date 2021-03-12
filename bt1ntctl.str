@@ -1,0 +1,215 @@
+;
+;	network driver variables
+;
+
+netctls		struc;
+
+
+msg_seq_nr	dw	?;	send sequence number
+rcv_seq_nr	dw	?;	if good recieve, then sequence number
+sta_id		db	?;	station address
+ret_code	db	?;	return code from transporter on receive
+src_id		db	?;	id of source (server) from transporter
+mlen		dw	?;	receive message size
+my_handle	dw	?;	handle to use in issueing requests
+server_status	db	?;	return status from server on receive
+
+
+netctls		ends;
+
+
+
+;
+;	command control block for omninet hardware
+;
+;	this data structure is used to issue commands to omninet hardware
+;
+ccbs		struc;			command control block
+
+
+	command	db	?;		omninet command
+	rra	db	3 dup (?);	address in omninet ram of result record
+	socket	db	?;		socket on server to write to
+	daddr	db	3 dup (?);	address in omninet ram of data record
+	len	db	2 dup (?);	data length
+	control	db	?;		length of extra control information
+	dest	db	?;		destination address (server's number)
+
+
+ccbs		ends;
+;
+;
+;	network message structure definitions
+;
+;
+
+
+;
+;	operation codes for the messages
+;
+devc_ready	equ	1;	check for device ready to load us
+on_line		equ	2;	bring device on-line, read label
+read		equ	3;	read a block of load image
+quiesce		equ	4;	quiesce (i.e., end of the load)
+ssocket		equ	080h;	station's receiving socket number
+fsocket		equ	0B0h;	file server communication socket #
+boot_function	equ	00h;	boot request's function type
+boot_ret	equ	00h;	expected return function for boot requests
+
+
+;
+;	return codes
+;
+sys_ok		equ	0;	good return code
+wait		equ	1;	server is not ready at this time
+;				higher error codes indicate remote errors
+
+
+;
+;	general equates for use with message protocol's format . . .
+;
+
+protocol_version	equ	1;	version number of this protocol
+net_header_size		equ	14;	size of the network header
+address_size		equ	2;	size of source/destination addresses
+send_devc_ready_size	equ	4;	size of transmitted device ready message
+recv_devc_ready_size	equ	3;	size of device ready's response
+send_on_line_size	equ	4;	size of transmitted on-line message
+recv_on_line_size	equ	17;	size of on-line's response
+send_read_size		equ	8;	size of transmitted read message
+recv_read_size		equ	3;	size of read's response (without data)
+send_quiesce_size	equ	4;	size of transmitted quiesce message
+recv_quiesce_size	equ	3;	size of quiesce's response
+
+
+
+;
+;	boot data format
+;
+;		for a send
+;
+boot_send	struc;
+
+
+;
+;OMNINET message format - the message consists of a header, common
+;	to all messages, and a data portion which is not related
+;	to the routing of messages on the network.  The header of
+;	the message contains source and destination addresses as 
+;	well as control information used by the network drivers.
+;
+;
+;	usage - 
+;		myptr		struct;
+;		include		fsmsgfmt;
+;		mymsgvariable1	db	xxx dup ?;	your data fields . . .
+;		mymsgvariable2	dw	?;
+;		myptr		ends;
+;
+
+
+
+;
+;	The preceeding definition is an example of the use of this include file.
+;	Typically, the fields in the header are not referenced by the function
+;	using this definition.  The header information must be preserved to
+;	allow proper handling of the response to a message (if required.)
+;	The data portion of the message is addressed by
+;
+;		segment of the entire message
+;		(offset of mymsg) + (mymsg.msghdr_size)
+;
+;	Some of the fields below are for future expansion and have an indicated
+;	value
+;
+
+;	the message header:
+
+msghdr_size	db	?;	byte count(=14) header portion - offset to data
+msghdr_fmtid	db	?;	protocol id(=1) - OMNINET/Victor net-2
+msghdr_ltime	db	?;	lifetime (0 for this fmtid)
+msghdr_ipdu	db	?;	segmentation flag and type (0=data,1=error)
+msghdr_duid	dw	?;	used for sender generated sequence  number
+msghdr_segoff	dw	?;	segmented message offset, nonseg messages=>0
+msghdr_dadln 	db	?;	destination address length - 2 for O/V-2
+msghdr_daddr	dw	?;	dest addr - byte1=OMNINET addr, byte2=socket
+msghdr_sadln	db	?;	source addr ln - 2 for O/V-2
+msghdr_saddr	dw	?;	source addr - byte1=OMNINET addr, byte2=socket
+
+;	end message header
+
+;
+;	begin data portion of message - max size of messages on O/V-2
+;	is 1000.  Currently, segmentation is not supported.
+;
+
+;	format for opcodes 1,2,3,4 (all have the opcode, handle, and version)
+
+	opcode	db	?;	particular boot operation
+	handle	dw	?;	handle used for server's identification
+	version	db	?;	version of the boot rom (which O/S to load)
+
+
+;	opcode 3 (read) has the above and the following
+
+	blk_nbr	dw	?;	starting block number to read
+	blk_cnt	dw	?;	count of blocks to read	
+
+
+boot_send	ends;
+
+
+;
+;		for a receive
+;
+boot_receive	struc;
+
+;	the message header:
+
+rcvhdr_size	db	?;	byte count(=14) header portion - offset to data
+rcvhdr_fmtid	db	?;	protocol id(=1) - OMNINET/Victor net-2
+rcvhdr_ltime	db	?;	lifetime (0 for this fmtid)
+rcvhdr_ipdu	db	?;	segmentation flag and type (0=data,1=error)
+rcvhdr_duid	dw	?;	used for sender generated sequence  number
+rcvhdr_segoff	dw	?;	segmented message offset, nonseg messages=>0
+rcvhdr_dadln 	db	?;	destination address length - 2 for O/V-2
+rcvhdr_daddr	dw	?;	dest addr - hibyte=OMNINET addr, lobyte=socket
+rcvhdr_sadln	db	?;	source addr ln - 2 for O/V-2
+rcvhdr_saddr	dw	?;	source addr - hibyte=OMNINET addr, lobyte=socket
+
+;	end message header
+
+;
+;	begin data portion of message - max size of messages on O/V-2
+;	is 1000.  Currently, segmentation is not supported.
+;
+	err	db	?;	0 is success, non-0 is error code (1 = wait)
+
+
+;	response for device ready has a server-supplied handle
+
+	rcvhand	dw	?;	handle to use in boot requests
+
+boot_receive	ends;
+
+
+
+;
+;		the data portion of a boot receive
+;
+boot_data	struc;
+
+;	a response to a read contains the load image data
+
+
+;	a response to an on-line contains "label" information
+
+	blk_siz	dw	?;	size of a boot block
+	blk_no	dw	?;	starting block number to load
+	loaddr	dw	?;	program load address paragraph
+	paras	dw	?;	number of paragraphs in the load image
+	start	dd	?;	program's entry address
+	max_cnt	dw	?;	maximum number of blocks for a read
+
+boot_data	ends;
+

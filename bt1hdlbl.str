@@ -1,0 +1,38 @@
+;
+;	HARD DISK LABEL FORMAT
+;
+
+hdlbl	struc;
+
+lbltyp	dw	?;		qualified or unqualified (should be 1)
+dvcid	dw	?;		revision number
+sernum	db	16 dup (?);	serial number of the drive
+lblssz	dw	?;		sector size of drive
+iplda	dw	?;		boot O/S disk address
+	dw	?;		(double word)
+iplla	dw	?;		segment to load O/S at
+ipllen	dw	?;		length of the O/S in paragraphs
+iplntry dw	?;		entry address of the O/S
+	dw	?;		(double word)
+pbtvol	dw	?;		primary boot volume (virtual volume number)
+ctlprm	db	8 dup (?);	controller parameters
+ctlop	db	?;		options to send with each command
+intlve	db	?;		interleave factor (unused by boot)
+spare	db	6 dup (?);	unused
+varlst	db	972 dup (?);	alist, wlist vlist
+;
+;	available media list
+;		number of regions (BYTE)
+;		for each region, DWORD of its address, DWORD of its block count
+;
+;	working media list
+;		number of regions (BYTE)
+;		for each region, DWORD of its address, DWORD of its block count
+;
+;	virtual volume list
+;		count of volumes (BYTE)
+;		for each volume, DWORD of its address
+;
+
+hdlbl	ends;
+

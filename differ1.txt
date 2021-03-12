@@ -1,0 +1,44 @@
+
+----------b:basebt1.asm
+blnkflp	equ	31;		count-down timer for how often to blink
+one_try	equ	01h;		only attempt booting once
+
+----------b:basevck.asm
+blnkflp	equ	31*30;		count-down timer for how often to blink
+one_try	equ	01h;		only attempt booting once
+
+-----------------------------------------------
+
+----------b:basebt1.asm
+	mov	byte ptr es:[pio40],54h;	set brightness and contrast
+	mov	byte ptr es:[pio40+2],0FFh;	set data direction register
+
+----------b:basevck.asm
+	mov	byte ptr es:[pio40],68h;	set brightness and contrast
+	mov	byte ptr es:[pio40+2],0FFh;	set data direction register
+
+-----------------------------------------------
+
+----------b:basebt1.asm
+;		If a floppy is inserted when we're not watching, the motor
+;		will not be turned on.  This causes the potential of having
+;		the floppy not seated properly (turning the motor on is an
+;		important part of the insertion process).  For this reason,
+;		poll the floppy frequently during the memory test.
+
+----------b:basevck.asm
+;		If a floppy is inserted when we're not watching, we will
+;		not notice the change.  This causes the potential of having
+;		a floppy inserted and not booted from.  For this reason,
+;		poll the floppy frequently during the memory test.
+
+-----------------------------------------------
+
+----------b:basebt1.asm
+
+;
+
+----------b:basevck.asm
+;
+
+-----------------------------------------------

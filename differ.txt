@@ -1,0 +1,236 @@
+
+----------b:bt1init.asm
+;
+
+----------b:vckinit.asm
+
+;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+extra_io	ends;
+
+
+----------b:vckinit.asm
+extra_io	ends
+
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+
+;
+
+----------b:vckinit.asm
+;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+FE_version	equ	0F3F6h;	version of ROM for FE's
+
+
+----------b:vckinit.asm
+FE_version	equ	0F2F6h;	version of ROM for FE's (vicki is F2F6)
+;				first release of VICKI was F2F2
+;				version for diskless is F1F1
+;				version for hard disk/floppy is 01FF
+;				version for floppy only is AAAA
+
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+user_init_errflg	equ	00004h;	user port error
+
+
+----------b:vckinit.asm
+
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+chcksum	equ	02152H;		boot ROM's checksum value
+crt	equ	0E800H;		I/O register for the CRT
+
+----------b:vckinit.asm
+chcksum	equ	02152h;		checksum for the Boot ROM
+crt	equ	0E800H;		I/O register for the CRT
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+nfatals	equ	300h+30Ch;	flags for non-fatal errors detected
+
+
+----------b:vckinit.asm
+nfatals	equ	300h+30Ch;	flag word for non-fatal errors found
+
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+;
+
+----------b:vckinit.asm
+
+;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+
+;
+
+----------b:vckinit.asm
+;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	mov	di,100h;	start at offset 100 hex
+
+----------b:vckinit.asm
+continue:;
+	mov	di,100h;	start at offset 100 hex
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	jmp	no_pic_fail;
+
+pic_mask_fail:;
+	or	word ptr cs:nfatals,pic_mask_init_errflg;
+
+
+----------b:vckinit.asm
+	jmp	no_pic_fail
+
+pic_mask_fail:;
+	or	word ptr cs:nfatals,pic_mask_init_errflg
+
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	mov	es:word ptr parallel2,prlddr;
+	cmp	es:word ptr parallel2,prlddr;
+	jne	parallel_fail;			init DDR's and check
+
+----------b:vckinit.asm
+	mov	es:parallel2,low prlddr;
+	cmp	es:parallel2,low prlddr;
+	jne	parallel_fail;
+	mov	es:parallel3,high prlddr;
+	cmp	es:parallel3,high prlddr;
+	jne	parallel_fail;			init DDR's and check
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	mov	ax,es:word ptr parallel4;
+	cmp	ax,es:word ptr parallel4;
+	je	parallel_fail;
+
+	mov	ax,es:word ptr parallel8;
+	cmp	ax,es:word ptr parallel8;
+	jne	no_parallel_fail;
+
+----------b:vckinit.asm
+	mov	al,es:parallel4;
+	cmp	al,es:parallel4;
+	je	parallel_fail;
+
+	mov	al,es:parallel8;
+	cmp	al,es:parallel8;
+	jne	no_parallel_fail;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	mov	es:word ptr keyboard2,kbdddr;
+	cmp	es:word ptr keyboard2,kbdddr;
+	jne	keyboard_fail;		init DDR's and check
+
+----------b:vckinit.asm
+	mov	es:keyboard2,low kbdddr;
+	cmp	es:keyboard2,low kbdddr;
+	jne	keyboard_fail;
+	mov	es:keyboard3,high kbdddr;
+	cmp	es:keyboard3,high kbdddr;
+	jne	keyboard_fail;		init DDR's and check
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+	mov	ax,es:word ptr keyboard4;
+	cmp	ax,es:word ptr keyboard4;
+	je	keyboard_fail;
+
+	mov	ax,es:word ptr keyboard8;
+	cmp	ax,es:word ptr keyboard8;
+	jne	no_keyboard_fail;
+
+----------b:vckinit.asm
+	mov	al,es:keyboard4;
+	cmp	al,es:keyboard4;
+	je	keyboard_fail;
+
+	mov	al,es:keyboard8;
+	cmp	al,es:keyboard8;
+	jne	no_keyboard_fail;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+;
+;	check the initialization of the user 6522
+;
+user_init_check:;
+
+	mov	es:word ptr user2,usrddr;
+	cmp	es:word ptr user2,usrddr;
+	jne	user_fail;		init DDR's and check
+
+	mov	es:word ptr user2,0000h;
+	cmp	es:word ptr user2,0000h;
+	jne	user_fail;		reset user DDR's
+
+	mov	al,es:user1;
+	cmp	al,es:userF;		RA = RAX ?
+	jne	user_fail;
+
+	mov	ax,es:word ptr user4;
+	cmp	ax,es:word ptr user4;
+	je	user_fail;
+
+	mov	ax,es:word ptr user8;
+	cmp	ax,es:word ptr user8;
+	jne	no_user_fail;
+
+user_fail:;
+	or	word ptr cs:nfatals,user_init_errflg;
+
+no_user_fail:;
+	jmp	far ptr boot;		jump to the boot's base module
+
+
+dent	endp;
+
+----------b:vckinit.asm
+	jmp	far ptr boot;		jump to boot's base module
+
+dent	endp;
+
+-----------------------------------------------
+
+----------b:bt1init.asm
+pcflag	dw	0FFFFh;		flags that we are IBM PC-Compatible
+
+
+----------b:vckinit.asm
+pcflag	dw	0FFFFh;		flag that we are IBM PC compatible
+
+
+-----------------------------------------------

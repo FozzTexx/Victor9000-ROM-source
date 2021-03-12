@@ -1,0 +1,18 @@
+;
+;	NETWORK LABEL FORMAT
+;
+
+netlbl		struc;
+
+
+block_size	dw	?;	block size while reading
+block_number	dw	?;	initial block's number
+load		dw	?;	system load address as a paragraph
+size		dw	?;	size of system in paragraphs
+entry_offset	dw	?;	program entry offset from segmant
+entry_segment	dw	?;	program entry segment
+max_count	dw	?;	maximum number of blocks can read at once
+
+
+netlbl		ends;
+
