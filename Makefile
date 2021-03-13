@@ -10,7 +10,7 @@ universal.hex: universal.rom
 universal.exe: bt1base.$(EXT)  bt1cuopn.$(EXT) bt1ntdvc.$(EXT) bt1chint.$(EXT) \
 	       bt1iconc.$(EXT) bt1vars.$(EXT)  bt1fddvc.$(EXT) bt1hddvc.$(EXT) \
 	       bt1init.$(EXT)
-	alink -o $(basename $@).exe $^
+	alink -o $@ $^
 
 universal.rom: universal.exe
 	dd if=$(basename $@).exe bs=1 skip=64 count=7424 > $@
