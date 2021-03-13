@@ -1,0 +1,7 @@
+*~
+*.o
+*.hex
+*.exe
+*.lst
+universal.rom
+borked

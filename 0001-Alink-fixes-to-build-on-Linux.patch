@@ -1,0 +1,365 @@
+From 2341ae4ab7678089007dc2386ed5455b4a73442b Mon Sep 17 00:00:00 2001
+From: Chris Osborn <fozztexx@fozztexx.com>
+Date: Sat, 13 Mar 2021 07:43:34 -0800
+Subject: [PATCH] Fixes to build on Linux.
+
+---
+ Makefile  |  8 ++++----
+ alink.c   | 18 +++++++++++++-----
+ alink.h   |  1 -
+ coff.c    | 11 +++++++----
+ cofflib.c |  8 +++++---
+ objload.c |  7 +++++--
+ output.c  | 28 ++++++++++++++--------------
+ util.c    | 20 ++++++++++----------
+ 8 files changed, 58 insertions(+), 43 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index dfffcb8..05cd298 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,9 +1,9 @@
+ %.o: %.c
+-        gcc -Zrsx32 -c -o $@ $<
++	gcc -c -o $@ $<
+ 
+-all: alink.exe
++all: alink
+ 
+ alink.o combine.o util.o output.o objload.o coff.o cofflib.o : alink.h
+ 
+-alink.exe: alink.o combine.o util.o output.o objload.o coff.o cofflib.o
+-        gcc -Zrsx32 -o $@ $^
++alink: alink.o combine.o util.o output.o objload.o coff.o cofflib.o
++	gcc -o $@ $^
+diff --git a/alink.c b/alink.c
+index 94d96bb..6a80e09 100644
+--- a/alink.c
++++ b/alink.c
+@@ -67,6 +67,14 @@ UINT libPathCount=0;
+ PCHAR *libPath=NULL;
+ char *entryPoint=NULL;
+ 
++void strupr(char *p)
++{
++  while (*p) {
++    *p = toupper(*p);
++    ++p;
++  }
++}
++
+ void processArgs(int argc,char **argv)
+ {
+     long i,j;
+@@ -335,7 +343,7 @@ void processArgs(int argc,char **argv)
+ 			if(i<(argc-1))
+ 			{
+ 			    i++;
+-			    if(sscanf(argv[i],"%d.%d%n",&setosmajor,&setosminor,&j)!=2)
++			    if(sscanf(argv[i],"%d.%d%n",&setosmajor,&setosminor,(int *)&j)!=2)
+ 			    {
+ 				printf("Invalid version number %s\n",argv[i]);
+ 				exit(1);
+@@ -523,7 +531,7 @@ void processArgs(int argc,char **argv)
+ 		    if(i<(argc-1))
+ 		    {
+ 			i++;
+-			if(sscanf(argv[i],"%d.%d%n",&setsubsysmajor,&setsubsysminor,&j)!=2)
++			if(sscanf(argv[i],"%d.%d%n",&setsubsysmajor,&setsubsysminor,(int *)&j)!=2)
+ 			{
+ 			    printf("Invalid version number %s\n",argv[i]);
+ 			    exit(1);
+@@ -867,7 +875,7 @@ void matchExterns()
+ 		{
+ 		    if(!strcmp(externs[i].name,impdefs[j].int_name)
+ 		       || ((case_sensitive==0) &&
+-			   !stricmp(externs[i].name,impdefs[j].int_name)))
++			   !strcasecmp(externs[i].name,impdefs[j].int_name)))
+ 		    {
+ 			externs[i].flags=EXT_MATCHEDIMPORT;
+ 			externs[i].impnum=j;
+@@ -882,7 +890,7 @@ void matchExterns()
+ 		    if(!expdefs[j].pubdef) continue;
+ 		    if(!strcmp(externs[i].name,expdefs[j].exp_name)
+ 		       || ((case_sensitive==0) &&
+-			   !stricmp(externs[i].name,expdefs[j].exp_name)))
++			   !strcasecmp(externs[i].name,expdefs[j].exp_name)))
+ 		    {
+ 			externs[i].pubdef=expdefs[j].pubdef;
+ 			externs[i].flags=EXT_MATCHEDPUBLIC;
+@@ -1596,7 +1604,7 @@ void generateMap()
+ 	fprintf(afile,"\n %li exports:\n",expcount);
+ 	for(i=0;i<expcount;i++)
+ 	{
+-	    fprintf(afile,"%s(%i)=%s\n",expdefs[i].exp_name,expdefs[i].ordinal,expdefs[i].int_name);
++	  fprintf(afile,"%s(%i)=%s\n",expdefs[i].exp_name,(int)expdefs[i].ordinal,expdefs[i].int_name);
+ 	}
+     }
+     if(impcount)
+diff --git a/alink.h b/alink.h
+index 075e740..a43a9d3 100644
+--- a/alink.h
++++ b/alink.h
+@@ -524,7 +524,6 @@ void *checkRealloc(void *p,size_t x);
+ char *checkStrdup(const char *s);
+ PSORTENTRY binarySearch(PSORTENTRY list,UINT count,char *key);
+ void sortedInsert(PSORTENTRY *plist,UINT *pcount,char *key,void *object);
+-#define strdup _strdup
+ 
+ extern char case_sensitive;
+ extern char padsegments;
+diff --git a/coff.c b/coff.c
+index a431c2d..d71d803 100644
+--- a/coff.c
++++ b/coff.c
+@@ -1,5 +1,8 @@
+ #include "alink.h"
+ 
++#define stricmp strcasecmp
++extern void strupr(char *p);
++
+ void loadcoff(FILE *objfile)
+ {
+     unsigned char headbuf[20];
+@@ -83,7 +86,7 @@ void loadcoff(FILE *objfile)
+         if(!stringSize) stringSize=4;
+         if(stringSize<4)
+         {
+-            printf("Invalid COFF object file, bad string table size %i\n",stringSize);
++	  printf("Invalid COFF object file, bad string table size %i\n",(int)stringSize);
+             exit(1);
+         }
+         stringPtr+=4;
+@@ -377,7 +380,7 @@ void loadcoff(FILE *objfile)
+ 	    seglist[segcount]->attr |= SEG_PARA; /* default */
+ 	    break;
+         default:
+-	    printf("Invalid COFF object file, bad section alignment %08X\n",seglist[segcount]->winFlags);
++	  printf("Invalid COFF object file, bad section alignment %08X\n",(unsigned int)seglist[segcount]->winFlags);
+ 	    exit(1);
+         }
+ 
+@@ -411,7 +414,7 @@ void loadcoff(FILE *objfile)
+ 		    combineType=sym[j].auxRecs[14];
+ 		    comdat->linkwith=sym[j].auxRecs[12]+(sym[j].auxRecs[13]<<8)+minseg-1;
+ 		    printf("Combine type %i ",sym[j].auxRecs[14]);
+-		    printf("Link alongside section %i",comdat->linkwith);
++		    printf("Link alongside section %i",(int)comdat->linkwith);
+ 		    
+ 		    break;
+ 		}
+@@ -714,7 +717,7 @@ void loadCoffImport(FILE *objfile)
+     }
+     /* get CPU type */
+     thiscpu=buf[6]+256*buf[7];
+-    printf("Import CPU=%04X\n",thiscpu);
++    printf("Import CPU=%04X\n",(unsigned int)thiscpu);
+     
+     if((thiscpu<0x14c) || (thiscpu>0x14e))
+     {
+diff --git a/cofflib.c b/cofflib.c
+index 2bf7ed8..a8236e4 100644
+--- a/cofflib.c
++++ b/cofflib.c
+@@ -1,5 +1,7 @@
+ #include "alink.h"
+ 
++extern void strupr(char *p);
++
+ void loadCoffLib(FILE *libfile,PCHAR libname)
+ {
+     UINT i,j;
+@@ -88,7 +90,7 @@ void loadCoffLib(FILE *libfile,PCHAR libname)
+ 	}
+ 	numsyms=buf[3]+(buf[2]<<8)+(buf[1]<<16)+(buf[0]<<24);
+     }
+-    printf("%u symbols\n",numsyms);
++    printf("%u symbols\n",(unsigned int)numsyms);
+     modbuf=(PUCHAR)checkMalloc(numsyms*4);
+    
+     if(numsyms)
+@@ -120,7 +122,7 @@ void loadCoffLib(FILE *libfile,PCHAR libname)
+ 	}
+ 	if(!name)
+ 	{
+-	    printf("NULL name for symbol %i\n",i);
++	  printf("NULL name for symbol %i\n",(int)i);
+ 	    exit(1);
+ 	}
+ 	if(!case_sensitive)
+@@ -155,7 +157,7 @@ void loadCoffLib(FILE *libfile,PCHAR libname)
+     if(ftell(libfile)!=(startPoint+68+memberSize))
+     {
+ 	printf("Invalid first linker member\n");
+-	printf("Pos=%08X, should be %08X\n",ftell(libfile),startPoint+68+memberSize);
++	printf("Pos=%08X, should be %08X\n",(unsigned int)ftell(libfile),(unsigned int)(startPoint+68+memberSize));
+ 	
+ 	exit(1);
+     }
+diff --git a/objload.c b/objload.c
+index 2a6a7c3..f39e1ab 100644
+--- a/objload.c
++++ b/objload.c
+@@ -1,5 +1,8 @@
+ #include "alink.h"
+ 
++extern void strupr(char *p);
++#define stricmp strcasecmp
++
+ char t_thred[4];
+ char f_thred[4];
+ int t_thredindex[4];
+@@ -711,8 +714,8 @@ long loadmod(FILE *objfile)
+ 		ReportError(ERR_BAD_SEGDEF);
+ 	    }
+ 	    if((seglist[segcount]->classindex>=0) &&
+-	       (!stricmp(namelist[seglist[segcount]->classindex],"CODE") ||
+-		!stricmp(namelist[seglist[segcount]->classindex],"TEXT")))
++	       (!strcasecmp(namelist[seglist[segcount]->classindex],"CODE") ||
++		!strcasecmp(namelist[seglist[segcount]->classindex],"TEXT")))
+             {
+                 /* code segment */
+                 seglist[segcount]->winFlags=WINF_CODE | WINF_INITDATA | WINF_EXECUTE | WINF_READABLE | WINF_NEG_FLAGS;
+diff --git a/output.c b/output.c
+index 8e01217..f93216f 100644
+--- a/output.c
++++ b/output.c
+@@ -186,7 +186,7 @@ void GetFixupTarget(PRELOC r,long *bseg,UINT *tofs,int isFlat)
+             {
+                 printf("Error: target address out of frame\n");
+                 printf("Base=%08X,target=%08X\n",
+-                    seglist[baseseg]->base,seglist[targseg]->base+targofs);
++		       (unsigned int)seglist[baseseg]->base,(unsigned int)(seglist[targseg]->base+targofs));
+                 errcount++;
+             }
+             targofs+=seglist[targseg]->base-seglist[baseseg]->base;
+@@ -1166,10 +1166,10 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+         case FIX_PTR1632:
+              if(targseg<0)
+              {
+-                printf("Reloc %li:Segment selector relocations are not supported in PE files\n",i);
++	       printf("Reloc %li:Segment selector relocations are not supported in PE files\n",(long int)i);
+ 		printf("rtype=%02X, frame=%04X, target=%04X, ftype=%02X, ttype=%02X\n",
+-		       relocs[i]->rtype,relocs[i]->frame,relocs[i]->target,relocs[i]->ftype,
+-		       relocs[i]->ttype);
++		       (unsigned int)relocs[i]->rtype,(unsigned int)relocs[i]->frame,(unsigned int)relocs[i]->target,(unsigned int)relocs[i]->ftype,
++		       (unsigned int)relocs[i]->ttype);
+ 		
+                 errcount++;
+              }
+@@ -1180,7 +1180,7 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+                 {
+                     if(targofs>0xffff)
+                     {
+-                        printf("Relocs %li:Warning 32 bit offset in 16 bit field\n",i);
++		      printf("Relocs %li:Warning 32 bit offset in 16 bit field\n",(long int)i);
+                     }
+                     targofs&=0xffff;
+                     temps=seglist[relocs[i]->segnum]->data[j];
+@@ -1237,7 +1237,7 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+         case FIX_OFS16_2:
+             if(targofs>0xffff)
+             {
+-                printf("Relocs %li:Warning 32 bit offset in 16 bit field\n",i);
++	      printf("Relocs %li:Warning 32 bit offset in 16 bit field\n",(long int)i);
+             }
+             targofs&=0xffff;
+             temps=seglist[relocs[i]->segnum]->data[relocs[i]->ofs];
+@@ -1263,7 +1263,7 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+                 j-=(seglist[relocs[i]->segnum]->base+relocs[i]->ofs+1);
+                 if((j<-128)||(j>127))
+                 {
+-                    printf("Error: Reloc %li out of range\n",i);
++		  printf("Error: Reloc %li out of range\n",(long int)i);
+                 }
+                 else
+                 {
+@@ -1284,7 +1284,7 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+                 j-=(seglist[relocs[i]->segnum]->base+relocs[i]->ofs+2);
+                 if((j<-32768)||(j>32767))
+                 {
+-                    printf("Error: Reloc %li out of range\n",i);
++		  printf("Error: Reloc %li out of range\n",(long int)i);
+                 }
+                 else
+                 {
+@@ -1319,7 +1319,7 @@ void BuildPERelocs(long relocSectNum,PUCHAR objectTable)
+             }
+             break;
+         default:
+-                printf("Reloc %li:Relocation type %i not supported\n",i,relocs[i]->rtype);
++	  printf("Reloc %li:Relocation type %i not supported\n",(long int)i,relocs[i]->rtype);
+                 errcount++;
+         }
+     }
+@@ -1694,7 +1694,7 @@ void BuildPEExports(long SectNum,PUCHAR objectTable,PUCHAR name)
+             k+=expSect->data[RVAStart+4*(expdefs[i].ordinal-minOrd)+3]<<24;
+             if(k) /* error if already used */
+             {
+-                printf("Duplicate export ordinal %i\n",expdefs[i].ordinal);
++	      printf("Duplicate export ordinal %i\n",(int)expdefs[i].ordinal);
+                 exit(1);
+             }
+             /* get RVA of export entry */
+@@ -2298,9 +2298,9 @@ void getStub(PUCHAR *pstubData,UINT *pstubSize)
+         headerSize=(headbuf[8]+(headbuf[9]<<8))<<4;
+         relocSize=(headbuf[6]+(headbuf[7]<<8))<<2;
+         imageSize-=headerSize;
+-        printf("imageSize=%i\n",imageSize);
+-        printf("header=%i\n",headerSize);
+-        printf("reloc=%i\n",relocSize);
++        printf("imageSize=%i\n",(int)imageSize);
++        printf("header=%i\n",(int)headerSize);
++        printf("reloc=%i\n",(int)relocSize);
+ 
+         /* allocate buffer for load image */
+         buf=(PUCHAR)checkMalloc(imageSize+0x40+((relocSize+0xf)&0xfffffff0));
+@@ -2751,7 +2751,7 @@ void OutputWin32file(PCHAR outname)
+             if(started>outlist[i]->base)
+             {
+                 printf("Segment overlap\n");
+-                printf("Next addr=%08X,base=%08X\n",started,outlist[i]->base);
++                printf("Next addr=%08X,base=%08X\n",(unsigned int)started,(unsigned int)outlist[i]->base);
+                 fclose(outfile);
+                 exit(1);
+             }
+diff --git a/util.c b/util.c
+index 7d104e9..8b76f71 100644
+--- a/util.c
++++ b/util.c
+@@ -109,22 +109,22 @@ void ReportError(long errnum)
+     default:
+ 	printf("\n");
+     }
+-    printf("name count = %i\n",namecount);
+-    printf("seg count = %i\n",segcount);
+-    printf("extcount=%i\n",extcount);
+-    printf("grpcount=%i\n",grpcount);
+-    printf("comcount=%i\n",comcount);
+-    printf("fixcount=%i\n",fixcount);
+-    printf("impcount=%i\n",impcount);
+-    printf("expcount=%i\n",expcount);
+-    printf("modcount=%i\n",nummods);
++    printf("name count = %i\n",(int)namecount);
++    printf("seg count = %i\n",(int)segcount);
++    printf("extcount=%i\n",(int)extcount);
++    printf("grpcount=%i\n",(int)grpcount);
++    printf("comcount=%i\n",(int)comcount);
++    printf("fixcount=%i\n",(int)fixcount);
++    printf("impcount=%i\n",(int)impcount);
++    printf("expcount=%i\n",(int)expcount);
++    printf("modcount=%i\n",(int)nummods);
+ 
+     for(i=0,tot=0;i<segcount;i++)
+     {
+ 	if(seglist[i] && seglist[i]->data)
+ 	    tot+=seglist[i]->length;
+     }
+-    printf("total segment size=%08X\n",tot);
++    printf("total segment size=%08X\n",(unsigned int)tot);
+ 		
+     exit(1);
+ }
+-- 
+2.25.1
+
